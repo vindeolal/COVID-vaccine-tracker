@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>COVID-19 vaccine tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script>
+        async function fetchData(age, pin, playSound) {
+            const today = moment().format("DD-MM-YYYY");
+            const data = await fetch(`https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/findByPin?pincode=${pin}&date=${today}`)
+                .then(res => res.json())
+                .then(data => _.get(data, 'sessions'));
+            const dose1ForAge = _.filter(data, ({min_age_limit, available_capacity_dose1}) => (available_capacity_dose1 > 0 && min_age_limit === age));
+            if (_.isEmpty(dose1ForAge)) {
+                document.getElementById('data').innerHTML = `No vaccine available for ${pin} on ${today} `;
+            } else {
+                if (playSound) {
+                    const sound = new Audio("https://www.freespecialeffects.co.uk/soundfx/animals/duck1.wav");
+                    sound.loop = true;
+                    await sound.play();
+                }
+                const centerNames = _.join(_.map(dose1ForAge, ({name}) => `"${name}"`), ", ");
+                document.getElementById('data').innerHTML = `Vaccine available for ${pin} on ${today} at : ${centerNames}`;
+            }
+        }
+
+        function onSubmit() {
+            const age = _.toNumber(document.getElementById("age").value);
+            const pin = _.toNumber(document.getElementById("pin").value);
+            if (!validateForm(age, pin)) {
+                return;
+            }
+            const parent = document.getElementById("container");
+            const child = document.getElementById("form");
+            parent.removeChild(child);
+            fetchData(age, pin, false);
+            setInterval(() => fetchData(age, pin, true), 1000 * 5) //re-run after every 5 sec
+        }
+
+        function validateForm(age, pin) {
+            if (age === 0) {
+                alert("Age cannot be empty");
+                return false;
+            } else if (pin === 0) {
+                alert("Pin cannot be empty");
+                return false;
+            } else if (!_.includes([18, 45], age)) {
+                alert("Age must be either 18 or 45");
+                return false;
+            } else if (_.toString(pin).length !== 5) {
+                alert("Ping must be 5 digit");
+                return false;
+            }
+            return true;
+        }
+
+    </script>
+</head>
+<body>
+<div id="container">
+    <form id="form">
+        <label for="age">Age group(Enter 18(for 18-45) or 45(for above 45)):</label>
+        <input id="age" type="number" name="age">
+        <label for="pin">Pin:</label>
+        <input id="pin" type="number" name="pin">
+        <button id="formSubmit" onclick="onSubmit()">Submit</button>
+    </form>
+    <h1 id="data" style="margin-top: 10px; text-align: center"></h1>
+</div>
+</body>
+</html>
